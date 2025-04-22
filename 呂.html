@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <title>澳门垃圾分类挑战赛 - 完整版</title>
+    <style>
+        body {
+            font-family: "微软雅黑", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f4f8;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .question-card {
+            height: 180px;
+            margin: 25px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .question-text {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2d3436;
+            text-align: center;
+            padding: 20px;
+            animation: fadeIn 0.5s;
+        }
+
+        .bins {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .bin-btn {
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 18px;
+            color: white;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .bin-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #timer {
+            font-size: 28px;
+            color: #e74c3c;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: 700;
+        }
+
+        #score {
+            font-size: 28px;
+            color: #27ae60;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: 700;
+        }
+
+        #result {
+            display: none;
+            margin-top: 30px;
+            padding: 25px;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+
+        /* 排行榜样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        .leaderboard {
+            position: relative;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .player-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="modal" id="leaderboardModal">
+        <div class="leaderboard">
+            <h3>🏆 玩家排行榜</h3>
+            <div id="leaderboardList"></div>
+            <button onclick="closeLeaderboard()" 
+                    style="margin-top:15px; padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:20px;">
+                关闭
+            </button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <h1 style="color: #2c3e50; text-align: center; margin-bottom: 25px;">♻️ 澳門垃圾分類文字挑戰賽 🗑️</h1>
+        <div id="timer">⏳ 剩餘時間：15秒</div>
+        <div id="score">🏆 當前得分：0</div>
+        
+        <div class="question-card">
+            <div class="question-text" id="current-question"></div>
+        </div>
+
+        <div class="bins">
+            <button class="bin-btn" style="background-color: #27ae60;" data-type="厨余垃圾類">🍚 厨余垃圾</button>
+            <button class="bin-btn" style="background-color: #2980b9;" data-type="塑料類">🥤 塑料类</button>
+            <button class="bin-btn" style="background-color: #f39c12;" data-type="金屬類">🔩 金属类</button>
+            <button class="bin-btn" style="background-color: #8e44ad;" data-type="玻璃類">🔮 玻璃类</button>
+            <button class="bin-btn" style="background-color: #c0392b;" data-type="有害垃圾">☣️ 有害垃圾</button>
+            <button class="bin-btn" style="background-color: #16a085;" data-type="紙類">📄 纸类</button>
+            <button class="bin-btn" style="background-color: #7f8c8d;" data-type="其他垃圾">🗑️ 其他垃圾</button>
+            <button class="bin-btn" style="background-color: #2ecc71;" data-type="織物類">👕 织物类</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+<script>
+// 完整题库 (30项)
+const trashItems = [
+    { name: "蚝壳", category: "其他垃圾" },
+    { name: "中药药渣", category: "厨余垃圾類" },
+    { name: "旧公仔", category: "織物類" },
+    { name: "破碎镜子", category: "其他垃圾" },
+    { name: "杏仁饼铁盒", category: "金屬類" },
+    { name: "过期化妆品", category: "有害垃圾" },
+    { name: "鱼骨", category: "其他垃圾" },
+    { name: "陶瓷碎片", category: "其他垃圾" },
+    { name: "利是封", category: "紙類" },
+    { name: "光管灯", category: "有害垃圾" },
+    // 添加更多题目...
+    { name: "旧衣服", category: "織物類" },
+    { name: "电池", category: "有害垃圾" },
+    { name: "玻璃瓶", category: "玻璃類" },
+    { name: "易拉罐", category: "金屬類" },
+    { name: "塑料袋", category: "塑料類" },
+    { name: "餐巾纸", category: "其他垃圾" },
+    { name: "茶叶渣", category: "厨余垃圾類" },
+    { name: "旧报纸", category: "紙類" },
+    { name: "荧光灯管", category: "有害垃圾" },
+    { name: "泡沫箱", category: "塑料類" },
+    { name: "菜刀", category: "金屬類" },
+    { name: "瓷碗", category: "其他垃圾" },
+    { name: "果皮", category: "厨余垃圾類" },
+    { name: "旧床单", category: "織物類" },
+    { name: "油漆桶", category: "有害垃圾" },
+    { name: "纸箱", category: "紙類" },
+    { name: "玻璃杯", category: "玻璃類" },
+    { name: "塑料瓶", category: "塑料類" },
+    { name: "铁锅", category: "金屬類" }
+];
+
+// 排行榜系统
+const storageKey = 'garbageSortingLeaderboard';
+let currentItem, score = 0, timeLeft = 15, timer, answeredItems = [], isGameActive = false;
+
+// 核心游戏逻辑
+function manageButtons(state) {
+    document.querySelectorAll('.bin-btn').forEach(btn => {
+        btn.disabled = !state;
+        btn.style.transform = state ? 'scale(1)' : 'scale(0.98)';
+    });
+}
+
+function showQuestion() {
+    const questionElement = document.getElementById('current-question');
+    questionElement.textContent = currentItem.name;
+    questionElement.style.animation = 'none';
+    setTimeout(() => questionElement.style.animation = 'fadeIn 0.3s', 10);
+}
+
+function updateTimer() {
+    if (timeLeft <= 0) return;
+    
+    timeLeft--;
+    document.getElementById('timer').textContent = `⏳ 剩余时间：${timeLeft}秒`;
+    
+    if (timeLeft <= 0) {
+        clearInterval(timer);
+        endGame();
+    }
+}
+
+function nextQuestion() {
+    if (trashItems.length === 0) {
+        endGame();
+        return;
+    }
+    
+    currentItem = trashItems.pop();
+    showQuestion();
+    isGameActive = true;
+    manageButtons(true);
+}
+
+document.querySelector('.bins').addEventListener('click', e => {
+    if (!isGameActive || !e.target.classList.contains('bin-btn')) return;
+    
+    isGameActive = false;
+    manageButtons(false);
+    checkAnswer(e.target.dataset.type);
+});
+
+function checkAnswer(selectedType) {
+    const isCorrect = selectedType === currentItem.category;
+    score += isCorrect ? 10 : -20;
+    
+    answeredItems.push({
+        item: currentItem.name,
+        correct: currentItem.category,
+        selected: selectedType
+    });
+
+    document.getElementById('score').textContent = `🏆 当前得分：${score}`;
+    
+    setTimeout(() => {
+        if (trashItems.length > 0 && timeLeft > 0) {
+            nextQuestion();
+        } else {
+            endGame();
+        }
+    }, 500);
+}
+
+// 排行榜功能
+function updateLeaderboard(username) {
+    const leaderboard = JSON.parse(localStorage.getItem(storageKey)) || [];
+    const existing = leaderboard.find(u => u.name === username);
+
+    if (existing) {
+        existing.totalScore += score;
+        existing.playCount++;
+        existing.lastPlay = new Date().toISOString();
+    } else {
+        leaderboard.push({
+            name: username,
+            totalScore: score,
+            playCount: 1,
+            lastPlay: new Date().toISOString()
+        });
+    }
+
+    leaderboard.sort((a, b) => 
+        b.totalScore - a.totalScore || 
+        new Date(b.lastPlay) - new Date(a.lastPlay)
+    );
+    
+    localStorage.setItem(storageKey, JSON.stringify(leaderboard));
+}
+
+function showLeaderboard() {
+    const leaderboard = JSON.parse(localStorage.getItem(storageKey)) || [];
+    const listElement = document.getElementById('leaderboardList');
+    
+    listElement.innerHTML = leaderboard.slice(0, 20).map((player, index) => `
+        <div class="player-row">
+            <div>${index + 1}. ${player.name}</div>
+            <div>
+                <span>总分: ${player.totalScore}</span> | 
+                <span>次数: ${player.playCount}</span>
+            </div>
+        </div>
+    `).join('') || '<p>暂无玩家数据</p >';
+    
+    document.getElementById('leaderboardModal').style.display = 'block';
+}
+
+function closeLeaderboard() {
+    document.getElementById('leaderboardModal').style.display = 'none';
+}
+
+function endGame() {
+    clearInterval(timer);
+    isGameActive = false;
+    manageButtons(false);
+    
+    const resultHTML = `
+        <h3 style="color: #2c3e50; margin-bottom: 20px;">🎮 游戏结束！最终得分：${score}</h3>
+        <div style="columns: 2; gap: 20px;">
+            ${answeredItems.map(item => `
+                <div style="break-inside: avoid; margin-bottom: 15px; padding: 15px; 
+                    background: ${item.correct === item.selected ? '#e8f5e9' : '#ffebee'}; 
+                    border-radius: 8px;">
+                    <div style="font-size: 16px; font-weight: 600;">${item.item}</div>
+                    <div style="margin-top: 8px;">
+                        <span style="color: #636e72;">✓ ${item.correct}</span><br>
+                        <span style="color: ${item.correct === item.selected ? '#27ae60' : '#e74c3c'}">
+                            ➔ ${item.selected}
+                        </span>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="button-group">
+            <button onclick="saveResult()" 
+                    style="padding:12px 24px; background:#3498db; color:white; border:none; border-radius:8px;">
+                💾 保存成绩
+            </button>
+            <button onclick="showLeaderboard()" 
+                    style="padding:12px 24px; background:#9b59b6; color:white; border:none; border-radius:8px;">
+                📊 排行榜
+            </button>
+            <button onclick="location.reload()" 
+                    style="padding:12px 24px; background:#2ecc71; color:white; border:none; border-radius:8px;">
+                🔄 再玩一次
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('result').innerHTML = resultHTML;
+    document.getElementById('result').style.display = 'block';
+}
+
+function saveResult() {
+    let username;
+    do {
+        username = prompt('请输入玩家名称（2-12个字符）:')?.trim().substring(0,12);
+    } while (!username || username.length < 2)
+    
+    updateLeaderboard(username);
+    alert('成绩已保存！');
+}
+
+function init() {
+    // 深度洗牌题目
+    const shuffledItems = [...trashItems];
+    for (let i = shuffledItems.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledItems[i], shuffledItems[j]] = [shuffledItems[j], shuffledItems[i]];
+    }
+    trashItems.length = 0;
+    trashItems.push(...shuffledItems);
+    
+    // 重置游戏状态
+    score = 0;
+    timeLeft = 15;
+    answeredItems = [];
+    isGameActive = true;
+    manageButtons(true);
+    
+    // 初始化计时器
+    clearInterval(timer);
+    document.getElementById('timer').textContent = `⏳ 剩余时间：${timeLeft}秒`;
+    document.getElementById('score').textContent = `🏆 当前得分：0`;
+    timer = setInterval(updateTimer, 1000);
+    
+    // 显示第一个题目
+    nextQuestion();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
